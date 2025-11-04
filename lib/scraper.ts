@@ -56,11 +56,12 @@ const runPythonScript = async (scriptPath: string, arg: string, maxRetries: numb
           clearTimeout(timeout);
 
           if (code !== 0) {
-            const errorMessage = `Python script failed with code ${code}: ${errorData}`;
+            // Combine both stdout and stderr for full error context
+            const fullOutput = `stdout: ${data}\nstderr: ${errorData}`;
+            const errorMessage = `Python script failed with code ${code}\n${fullOutput}`;
             console.error(`Script ${scriptPath} failed:`, errorMessage);
             console.error(`Python path used: ${pythonPath}`);
             console.error(`Script path: ${absoluteScriptPath}`);
-            console.error(`Full stderr output: ${errorData}`);
 
             // Check if this is a rate limiting error
             if (errorData.includes('429') || errorData.includes('rate limit') ||
@@ -78,6 +79,7 @@ const runPythonScript = async (scriptPath: string, arg: string, maxRetries: numb
             console.log(`${scriptPath} completed successfully`);
             resolve(parsed.data ?? parsed ?? {}); // fallback if JSON structure varies
           } catch (err) {
+            console.error(`Failed to parse output. stdout: ${data}, stderr: ${errorData}`);
             reject(new Error("Failed to parse Python script output: " + err));
           }
         });
