@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       const currentPrice = parseIndianPrice(productInfo.price);
       const priceHistory = generatePriceHistory(currentPrice);
 
-      // Calculate sentiment analysis from reviews
+      // Calculate sentiment analysis from reviews OR product rating
       let sentimentAnalysis = {
         positive: 60,
         neutral: 25,
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       };
 
       if (reviews.length > 0) {
-        // Simple sentiment analysis based on ratings
+        // Simple sentiment analysis based on actual review ratings
         const ratings = reviews.map((review: any) => {
           const rating = parseFloat(review.Stars?.replace(/[^0-9.]/g, '') || '3');
           return rating;
@@ -115,30 +115,149 @@ export async function POST(request: Request) {
             negative: Math.round((negative / ratings.length) * 100)
           };
         }
+      } else if (productInfo.rating && productInfo.rating !== 'N/A') {
+        // Fallback: Use product's overall rating to estimate sentiment
+        const avgRating = parseFloat(String(productInfo.rating).replace(/[^0-9.]/g, '') || '0');
+        
+        if (avgRating >= 4.0) {
+          // High rating: mostly positive
+          sentimentAnalysis = {
+            positive: Math.round(70 + (avgRating - 4) * 15),
+            neutral: Math.round(20 - (avgRating - 4) * 5),
+            negative: Math.round(10 - (avgRating - 4) * 5)
+          };
+        } else if (avgRating >= 3.0) {
+          // Medium rating: mixed sentiment
+          sentimentAnalysis = {
+            positive: Math.round(40 + (avgRating - 3) * 30),
+            neutral: Math.round(35 - (avgRating - 3) * 5),
+            negative: Math.round(25 - (avgRating - 3) * 10)
+          };
+        } else if (avgRating > 0) {
+          // Low rating: mostly negative
+          sentimentAnalysis = {
+            positive: Math.round(15 + avgRating * 8),
+            neutral: Math.round(20 + avgRating * 5),
+            negative: Math.round(65 - avgRating * 13)
+          };
+        }
       }
 
-      // Extract key insights from reviews
-      const keyInsights = [
-        "Product quality is generally well-received",
-        "Shipping and delivery times meet expectations",
-        "Value for money is considered reasonable"
-      ];
+      // Extract key insights from reviews and product data
+      const keyInsights: string[] = [];
+      
+      // Add rating-based insight
+      const avgRating = parseFloat(String(productInfo.rating || '0').replace(/[^0-9.]/g, '') || '0');
+      if (avgRating >= 4.5) {
+        keyInsights.push("Highly rated product with excellent customer satisfaction");
+      } else if (avgRating >= 4.0) {
+        keyInsights.push("Well-received product with strong customer ratings");
+      } else if (avgRating >= 3.0) {
+        keyInsights.push("Product has mixed reviews from customers");
+      } else if (avgRating > 0) {
+        keyInsights.push("Product has lower ratings, consider alternatives");
+      }
 
+      // Add availability insight
+      if (productInfo.availability && productInfo.availability !== 'N/A') {
+        if (productInfo.availability.toLowerCase().includes('in stock')) {
+          keyInsights.push("Currently available for immediate purchase");
+        } else if (productInfo.availability.toLowerCase().includes('out of stock')) {
+          keyInsights.push("Currently out of stock - check back later");
+        }
+      }
+
+      // Add price insight
+      if (productInfo.discount_percentage) {
+        const discount = parseInt(productInfo.discount_percentage);
+        if (discount >= 30) {
+          keyInsights.push(`Great deal with ${discount}% discount currently available`);
+        } else if (discount >= 15) {
+          keyInsights.push(`Moderate discount of ${discount}% off regular price`);
+        }
+      }
+
+      // Add review count insight
       if (reviews.length > 0) {
-        keyInsights.push(`Based on ${reviews.length} customer reviews analyzed`);
+        keyInsights.push(`Analysis based on ${reviews.length} recent customer reviews`);
+      } else if (productInfo.reviewCount && productInfo.reviewCount !== 'N/A') {
+        keyInsights.push(`Product has ${productInfo.reviewCount} total customer reviews`);
+      }
+      
+      // Fallback if no insights generated
+      if (keyInsights.length === 0) {
+        keyInsights.push("Limited review data available for detailed analysis");
       }
 
-      // Generate pros and cons
-      const pros = [
-        "High customer satisfaction rating",
-        "Reliable seller with good track record",
-        "Competitive pricing"
-      ];
-
-      const cons = [
-        "Limited availability in some regions",
-        "Some customers report packaging issues"
-      ];
+      // Generate pros and cons based on actual product data
+      const pros: string[] = [];
+      const cons: string[] = [];
+      
+      // Analyze pros
+      if (avgRating >= 4.0) {
+        pros.push(`High customer rating of ${productInfo.rating}/5.0`);
+      }
+      
+      if (productInfo.discount_percentage && parseInt(productInfo.discount_percentage) >= 15) {
+        pros.push(`Currently ${productInfo.discount_percentage}% off regular price`);
+      }
+      
+      if (productInfo.availability?.toLowerCase().includes('in stock')) {
+        pros.push("Available for immediate purchase");
+      }
+      
+      if (productInfo.reviewCount && productInfo.reviewCount !== 'N/A') {
+        const reviewCountNum = typeof productInfo.reviewCount === 'string' ? 
+          parseInt(productInfo.reviewCount.replace(/[^0-9]/g, '')) : productInfo.reviewCount;
+        if (!isNaN(reviewCountNum) && reviewCountNum > 100) {
+          pros.push(`Trusted by ${productInfo.reviewCount} customers`);
+        }
+      }
+      
+      if (reviews.length > 0) {
+        const posReviews = reviews.filter((r: any) => {
+          const stars = parseFloat(r.Stars?.replace(/[^0-9.]/g, '') || '0');
+          return stars >= 4;
+        });
+        if (posReviews.length / reviews.length >= 0.7) {
+          pros.push("Majority of recent reviews are positive");
+        }
+      }
+      
+      // Analyze cons
+      if (avgRating < 4.0 && avgRating > 0) {
+        cons.push("Mixed or lower customer ratings");
+      }
+      
+      if (!productInfo.discount_percentage || parseInt(productInfo.discount_percentage) < 5) {
+        cons.push("Limited or no discount currently available");
+      }
+      
+      if (productInfo.availability?.toLowerCase().includes('out of stock')) {
+        cons.push("Currently out of stock");
+      }
+      
+      if (reviews.length > 0) {
+        const negReviews = reviews.filter((r: any) => {
+          const stars = parseFloat(r.Stars?.replace(/[^0-9.]/g, '') || '0');
+          return stars <= 2;
+        });
+        if (negReviews.length / reviews.length >= 0.2) {
+          cons.push("Some customers report issues or dissatisfaction");
+        }
+      }
+      
+      // Add defaults if lists are empty
+      if (pros.length === 0) {
+        pros.push("Product available on Amazon marketplace");
+        if (productInfo.features && productInfo.features.length > 0) {
+          pros.push("Detailed product specifications available");
+        }
+      }
+      
+      if (cons.length === 0) {
+        cons.push("Limited recent review data for comprehensive analysis");
+      }
 
       // Price comparison with historical data
       const priceComparison = {

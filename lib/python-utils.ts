@@ -14,14 +14,20 @@ export function getPythonPath(): string {
   }
   
   // For local development, try to use virtual environment
-  const venvPythonPath = path.join(process.cwd(), '.venv', 'bin', 'python');
+  // Windows uses Scripts/python.exe, Unix uses bin/python
+  const isWindows = process.platform === 'win32';
+  const venvPythonPath = isWindows
+    ? path.join(process.cwd(), '.venv', 'Scripts', 'python.exe')
+    : path.join(process.cwd(), '.venv', 'bin', 'python');
   
   if (fs.existsSync(venvPythonPath)) {
     return venvPythonPath;
   }
   
   // Fallback to system Python
-  return '';
+  // On Windows, try 'python' first, then 'python3'
+  // On Unix systems, try 'python3' first, then 'python'
+  return isWindows ? 'python' : 'python3';
 }
 
 /**
