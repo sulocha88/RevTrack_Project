@@ -58,6 +58,9 @@ const runPythonScript = async (scriptPath: string, arg: string, maxRetries: numb
           if (code !== 0) {
             const errorMessage = `Python script failed with code ${code}: ${errorData}`;
             console.error(`Script ${scriptPath} failed:`, errorMessage);
+            console.error(`Python path used: ${pythonPath}`);
+            console.error(`Script path: ${absoluteScriptPath}`);
+            console.error(`Full stderr output: ${errorData}`);
 
             // Check if this is a rate limiting error
             if (errorData.includes('429') || errorData.includes('rate limit') ||
