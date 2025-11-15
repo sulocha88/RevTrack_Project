@@ -6,6 +6,11 @@ import random
 import sys
 from urllib.parse import urlparse
 
+# Fix Windows encoding issues
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 # Retry configuration - Optimized for speed
 MAX_RETRIES = 2  # Reduced retries
 RETRY_DELAY = 2  # Reduced delay

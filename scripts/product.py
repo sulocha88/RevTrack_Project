@@ -6,6 +6,11 @@ import random
 import asyncio
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
+# Fix Windows encoding issues
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 # Retry configuration - Optimized for speed
 MAX_RETRIES = 2  # Reduced for faster response
 RETRY_DELAY = 3  # Reduced delay for quicker retries
