@@ -17,8 +17,9 @@ export interface ProductData {
 }
 
 // Retry configuration - Optimized for speed
-const MAX_RETRIES = 2; // Reduced retries
-const RETRY_DELAY = 1000; // Reduced to 1 second
+const MAX_RETRIES = 2; // Node-level retries for the Python process
+const RETRY_DELAY = 1000; // Base delay (ms) for exponential backoff between attempts
+const PROCESS_TIMEOUT_MS = 60000; // Allow up to 60s for Playwright-based scripts to finish
 
 // Function to sleep for a given number of milliseconds
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -43,11 +44,14 @@ const runPythonScript = async (scriptPath: string, arg: string, maxRetries: numb
         let errorData = "";
         let timeout: NodeJS.Timeout;
 
-        // Set a timeout for the process - Reduced for speed
+        // Set a timeout for the process.
+        // This should be longer than the Playwright navigation/selector timeouts
+        // so that Python can handle timeouts gracefully and return JSON instead of
+        // being killed mid-run (which can cause EPIPE errors in Playwright's driver).
         timeout = setTimeout(() => {
           pythonProcess.kill();
-          reject(new Error(`Process timed out after 20 seconds`));
-        }, 20000); // Reduced from 60s to 20s
+          reject(new Error(`Process timed out after ${PROCESS_TIMEOUT_MS / 1000} seconds`));
+        }, PROCESS_TIMEOUT_MS);
 
         pythonProcess.stdout.on("data", (chunk) => (data += chunk.toString()));
         pythonProcess.stderr.on("data", (chunk) => (errorData += chunk.toString()));

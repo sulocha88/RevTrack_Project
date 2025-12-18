@@ -17,6 +17,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
     }
 
+    const startTime = Date.now();
+
     // Validate Amazon URL
     const isValidAmazonUrl = (url: string): boolean => {
       try {
@@ -115,7 +117,7 @@ export async function POST(request: Request) {
             negative: Math.round((negative / ratings.length) * 100)
           };
         }
-      } else if (productInfo.rating && productInfo.rating !== 'N/A') {
+      } else if (productInfo.rating) {
         // Fallback: Use product's overall rating to estimate sentiment
         const avgRating = parseFloat(String(productInfo.rating).replace(/[^0-9.]/g, '') || '0');
         
@@ -180,7 +182,7 @@ export async function POST(request: Request) {
       // Add review count insight
       if (reviews.length > 0) {
         keyInsights.push(`Analysis based on ${reviews.length} recent customer reviews`);
-      } else if (productInfo.reviewCount && productInfo.reviewCount !== 'N/A') {
+      } else if (productInfo.reviewCount && productInfo.reviewCount > 0) {
         keyInsights.push(`Product has ${productInfo.reviewCount} total customer reviews`);
       }
       
@@ -206,9 +208,8 @@ export async function POST(request: Request) {
         pros.push("Available for immediate purchase");
       }
       
-      if (productInfo.reviewCount && productInfo.reviewCount !== 'N/A') {
-        const reviewCountNum = typeof productInfo.reviewCount === 'string' ? 
-          parseInt(productInfo.reviewCount.replace(/[^0-9]/g, '')) : productInfo.reviewCount;
+      if (productInfo.reviewCount && productInfo.reviewCount > 0) {
+        const reviewCountNum = productInfo.reviewCount;
         if (!isNaN(reviewCountNum) && reviewCountNum > 100) {
           pros.push(`Trusted by ${productInfo.reviewCount} customers`);
         }
@@ -296,7 +297,7 @@ export async function POST(request: Request) {
           reviewCount: reviews.length
         },
         lastUpdated: new Date().toISOString(),
-        processingTime: Date.now() - Date.now() // Will be calculated properly
+        processingTime: Date.now() - startTime
       };
 
       console.log("Product analysis completed successfully");

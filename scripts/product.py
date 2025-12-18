@@ -12,7 +12,8 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Retry configuration - Optimized for speed
-MAX_RETRIES = 2  # Reduced for faster response
+# Keep retries low so the overall script duration stays reasonable when called from Node
+MAX_RETRIES = 1  # At most 2 total attempts per process
 RETRY_DELAY = 3  # Reduced delay for quicker retries
 
 # User agents for rotation
